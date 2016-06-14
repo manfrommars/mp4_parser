@@ -1,4 +1,5 @@
 import struct
+import datetime
 
 ######################################################################
 ## Errors
@@ -77,6 +78,14 @@ def readBoxHeader(file):
 
     return (box_size, box_type, read_offset)
 
+# Advance the file read pointer rather than reading data to memory
+def advanceNBytes(file, num_bytes):
+    start_offset = file.tell()
+    file.seek(num_bytes, 1)
+    end_offset = file.tell()
+    if end_offset - start_offset < num_bytes:
+        raise FileReadError(file.name, num_bytes, actual_bytes)
+
 ######################################################################
 ## Box Types
 ######################################################################
@@ -97,11 +106,20 @@ def processFTYP(file, box_len):
     print(file.name)
     if box_len % 4 != 0:
         raise FormatError('ftyp')
-    raw_major_brand = file.read(4)
+    try:
+        raw_major_brand = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
     major_brand = raw_major_brand.decode('utf-8')
-    raw_minor_version = file.read(4)
+    try:
+        raw_minor_version = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
     minor_version = struct.unpack('>I', raw_minor_version)[0]
-    raw_compatible_brands = file.read(box_len-8)
+    try:
+        raw_compatible_brands = readFromFile(file, box_len-8)
+    except FileReadError as err:
+        raise err
     compatible_brands = raw_compatible_brands.decode('utf-8')
 
     # Split up compatible brands 
@@ -114,7 +132,7 @@ def processFTYP(file, box_len):
     for brand in compatible_brands:
         print(brand + ", ", end="")
     print()
-    return # TODO: return a container with all of these in them
+    return box_len # TODO: return a container with all of these in them
 
 # ISO/IEC 14496-12, Section 8.1, Movie Box
 # Box Type:     'moov'
@@ -129,7 +147,9 @@ def processFTYP(file, box_len):
 # Last field is an array of 4x UTF-8 values and will fill the
 # remainder of the box
 def processMOOV(file, box_len):
-    file.read(box_len)
+    child_size = readMp4Box(file)
+    box_len = box_len - child_size
+    advanceNBytes(file, box_len)
 
 # ISO/IEC 14496-12, Section 8.2, Media Data Box
 # Box Type:     'mdat'
@@ -141,7 +161,8 @@ def processMOOV(file, box_len):
 #               0           data                8 * n
 # Last field is an array of the media bytes
 def processMDAT(file, box_len):
-    file.read(box_len)
+    advanceNBytes(file, box_len)
+    return box_len
 
 # ISO/IEC 14496-12, Section 8.3, Movie Header Box
 # Box Type:     'mvhd'
@@ -149,14 +170,101 @@ def processMDAT(file, box_len):
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-### Box Format:   [Offset,B]  [Field]             [Size, b]
-###               0           major_brand         32
-###               4           minor_version       32
-###               8           compatible_brands   32 * n
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+######################### For version == 0 ###########################
+#               4           creation_time       32
+#               8           modification_time   32
+#               12          timescale           32
+#               16          duration            32
+#               20          rate                32
+#               24          volume              16
+#               26          reserved            16
+#               28          reserved            32*2
+#               36          matrix              32*9
+#               72          pre_defined         32*6
+#               96          next_track_ID       32
+#
 # Last field is an array of 4x UTF-8 values and will fill the
 # remainder of the box
 def processMVHD(file, box_len):
-    file.read(box_len)
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    print(flags)
+    if version_info == 0:
+        try:
+            raw_creation_time = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        creation_time = struct.unpack('>L', raw_creation_time)[0]
+        print("Creation time: " + 
+            datetime.datetime.fromtimestamp(
+                creation_time
+            ).strftime('%Y-%m-%d %H:%M:%S')
+        )
+        try:
+            raw_modification_time = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        modification_time = struct.unpack('>I', raw_modification_time)[0]
+        print("Modification time: " + 
+            datetime.datetime.fromtimestamp(
+                modification_time
+            ).strftime('%Y-%m-%d %H:%M:%S')
+        )
+        try:
+            raw_timescale = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        timescale = struct.unpack('>I', raw_timescale)[0]
+        print("Timescale: " + str(timescale))
+        try:
+            raw_duration = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        duration = struct.unpack('>I', raw_duration)[0]
+        print("Duration: " + str(duration))
+
+    try:
+        raw_rate = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
+    rate = struct.unpack('>i', raw_rate)[0]
+    print("Rate: " + str(rate))
+
+    try:
+        raw_volume = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    volume = struct.unpack('>h', raw_volume)[0]
+    print("Volume: " + str(volume))
+    # Skip the next 10 bytes, they should all be 0
+    advanceNBytes(file, 10)
+    # Read matrix
+    try:
+        raw_matrix = readFromFile(file, 36)
+    except FileReadError as err:
+        raise err
+    matrix = struct.unpack('>IIIIIIIII', raw_matrix)
+    # Skip the next 24 bytes, they should all be 0
+    advanceNBytes(file, 24)
+    try:
+        raw_next_track_ID = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
+    next_track_ID = struct.unpack('>I', raw_next_track_ID)[0]
+    print("Next track ID: " + str(next_track_ID))
+    return box_len
 
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
@@ -174,7 +282,7 @@ def readMp4Box(file):
     except FileReadError as err:
         print("Failed to read the file, bytes read: " + str(err.bytes_read))
         print("instead of: " + str(err.bytes_requested))
-        return
+        return err.bytes_read
 
     try:
         # Process each type
@@ -182,12 +290,15 @@ def readMp4Box(file):
             processFTYP(file, box_size-read_offset)
         elif box_type == 'moov':
             processMOOV(file, box_size-read_offset)
+        elif box_type == 'mvhd':
+            processMVHD(file, box_size-read_offset)
         else:
-            # TODO: should skip over the file contents rather than
-            # reading them into memory
-            data = file.read(box_size - read_offset)
+            # TODO: add handling for more box types
+            advanceNBytes(file, box_size - read_offset)
     except FormatError as e:
         print("Formatting error in box type: ", e.box_type)
+
+    return box_size
 
 def readFile(filename):
     with open(filename, "rb") as f:
