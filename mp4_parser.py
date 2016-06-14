@@ -313,6 +313,3 @@ def readFile(filename):
         # This one will fail
         readMp4Box(f)
 
-dirpath = '/Users/elliots/Movies/dance_tutorials/spain_videos_miguel/'
-filename = '9-3-2015.mp4'
-readFile(dirpath + filename)
