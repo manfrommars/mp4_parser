@@ -65,13 +65,19 @@ def readBoxHeader(file):
 
     # Check to see if this uses a 64-bit size
     if box_size == 1:
-        raw_largesize = file.read(8)
+        try:
+            raw_largesize = readFromFile(file, 8)
+        except FileReadError as err:
+            raise err
         box_size = struct.unpack('>Q', raw_largesize)[0]
         read_offset = read_offset + 8
 
     # Check for uuid entry
     if box_type == 'uuid':
-        raw_usertype = file.read(128)
+        try:
+            raw_usertype = readFromFile(file, 128)
+        except FileReadError as err:
+            raise err
         read_offset = read_offset + 128
 
     print("Box '"+box_type+"', Length: "+ str(box_size) + " bytes")
@@ -132,7 +138,7 @@ def processFTYP(file, box_len):
     for brand in compatible_brands:
         print(brand + ", ", end="")
     print()
-    return box_len # TODO: return a container with all of these in them
+    return # TODO: return a container with all of these in them
 
 # ISO/IEC 14496-12, Section 8.1, Movie Box
 # Box Type:     'moov'
@@ -147,9 +153,9 @@ def processFTYP(file, box_len):
 # Last field is an array of 4x UTF-8 values and will fill the
 # remainder of the box
 def processMOOV(file, box_len):
-    child_size = readMp4Box(file)
-    box_len = box_len - child_size
-    advanceNBytes(file, box_len)
+    child_size = 0
+    while child_size < box_len:
+        child_size = child_size + readMp4Box(file)
 
 # ISO/IEC 14496-12, Section 8.2, Media Data Box
 # Box Type:     'mdat'
@@ -162,7 +168,6 @@ def processMOOV(file, box_len):
 # Last field is an array of the media bytes
 def processMDAT(file, box_len):
     advanceNBytes(file, box_len)
-    return box_len
 
 # ISO/IEC 14496-12, Section 8.3, Movie Header Box
 # Box Type:     'mvhd'
@@ -264,7 +269,6 @@ def processMVHD(file, box_len):
         raise err
     next_track_ID = struct.unpack('>I', raw_next_track_ID)[0]
     print("Next track ID: " + str(next_track_ID))
-    return box_len
 
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
@@ -302,21 +306,11 @@ def readMp4Box(file):
 
 def readFile(filename):
     with open(filename, "rb") as f:
-##        first_bytes = f.read(4)
-####        print(first_bytes)
-##        box_len = binaryLen(first_bytes)
-##        print("Length: "+str(box_len))
-##        datastr = f.read(box_len-4)
-##        box_name = datastr[0:4].decode('utf-8')
-##        print(box_name)
-##        box_len = binaryLen(f.read(4))
-##        print("Length: "+str(box_len))
-##        datastr = f.read(box_len-4)
-##        box_name = datastr[0:4].decode('utf-8')
-##        print(box_name)
+        # TODO: loop and catch exceptions
         readMp4Box(f)
         readMp4Box(f)
         readMp4Box(f)
+        # This one will fail
         readMp4Box(f)
 
 dirpath = '/Users/elliots/Movies/dance_tutorials/spain_videos_miguel/'
