@@ -92,6 +92,12 @@ def advanceNBytes(file, num_bytes):
     if end_offset - start_offset < num_bytes:
         raise FileReadError(file.name, num_bytes, actual_bytes)
 
+# Read and process all children in num_bytes
+def processChildren(file, num_bytes):
+    child_size = 0
+    while child_size < num_bytes:
+        child_size = child_size + readMp4Box(file)
+
 ######################################################################
 ## Box Types
 ######################################################################
@@ -146,16 +152,9 @@ def processFTYP(file, box_len):
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           major_brand         32
-#               4           minor_version       32
-#               8           compatible_brands   32 * n
-# Last field is an array of 4x UTF-8 values and will fill the
-# remainder of the box
+# Contains other boxes
 def processMOOV(file, box_len):
-    child_size = 0
-    while child_size < box_len:
-        child_size = child_size + readMp4Box(file)
+    processChildren(file, box_len)
 
 # ISO/IEC 14496-12, Section 8.2, Media Data Box
 # Box Type:     'mdat'
@@ -272,6 +271,16 @@ def processMVHD(file, box_len):
     next_track_ID = struct.unpack('>I', raw_next_track_ID)[0]
     print("Next track ID: " + str(next_track_ID))
 
+# ISO/IEC 14496-12, Section 8.4, Track Box
+# Box Type:     'trak'
+# Container:    Movie Box ('moov')
+# Mandatory:    Yes
+# Quantity:     One or more
+#
+# Contains other boxes
+def processTRAK(file, box_len):
+    processChildren(file, box_len)
+
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
 # Box Format:   [Offset,B]  [Field]             [Size, b]
@@ -300,6 +309,8 @@ def readMp4Box(file):
             processMOOV(file, box_size-read_offset)
         elif box_type == 'mvhd':
             processMVHD(file, box_size-read_offset)
+        elif box_type == 'trak':
+            processTRAK(file, box_size-read_offset)
         else:
             # TODO: add handling for more box types
             advanceNBytes(file, box_size - read_offset)
