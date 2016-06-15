@@ -284,8 +284,10 @@ def readMp4Box(file):
     try:
         (box_size, box_type, read_offset) = readBoxHeader(file)
     except FileReadError as err:
-        print("Failed to read the file, bytes read: " + str(err.bytes_read))
-        print("instead of: " + str(err.bytes_requested))
+        # Ignore this case for now, it signals EOF
+        if err.bytes_read != 0:
+            print("Failed to read the file, bytes read: " + str(err.bytes_read))
+            print("instead of: " + str(err.bytes_requested))
         return err.bytes_read
 
     try:
@@ -304,12 +306,12 @@ def readMp4Box(file):
 
     return box_size
 
-def readFile(filename):
+# Function reads an MP4 file and parses all of the box types it
+# recognizes
+def readMp4File(filename):
     with open(filename, "rb") as f:
-        # TODO: loop and catch exceptions
-        readMp4Box(f)
-        readMp4Box(f)
-        readMp4Box(f)
-        # This one will fail
-        readMp4Box(f)
-
+        # readMp4Box returns the number of bytes read, EOF when it
+        # reads 0
+        while readMp4Box(f) > 0:
+            pass
+        
