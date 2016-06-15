@@ -239,7 +239,9 @@ def processMVHD(file, box_len):
             raise err
         duration = struct.unpack('>I', raw_duration)[0]
         print("Duration: " + str(duration))
-
+    elif version_info == 1:
+        # TODO: implement 64-bit timestamps
+        raise FormatError
     try:
         raw_rate = readFromFile(file, 4)
     except FileReadError as err:
