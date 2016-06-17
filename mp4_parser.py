@@ -220,7 +220,7 @@ def processMVHD(file, box_len):
             raw_modification_time = readFromFile(file, 4)
         except FileReadError as err:
             raise err
-        modification_time = struct.unpack('>I', raw_modification_time)[0]
+        modification_time = struct.unpack('>l', raw_modification_time)[0]
         print("Modification time: " + 
             datetime.datetime.fromtimestamp(
                 modification_time
@@ -230,13 +230,13 @@ def processMVHD(file, box_len):
             raw_timescale = readFromFile(file, 4)
         except FileReadError as err:
             raise err
-        timescale = struct.unpack('>I', raw_timescale)[0]
+        timescale = struct.unpack('>l', raw_timescale)[0]
         print("Timescale: " + str(timescale))
         try:
             raw_duration = readFromFile(file, 4)
         except FileReadError as err:
             raise err
-        duration = struct.unpack('>I', raw_duration)[0]
+        duration = struct.unpack('>L', raw_duration)[0]
         print("Duration: " + str(duration))
     elif version_info == 1:
         # TODO: implement 64-bit timestamps
@@ -281,6 +281,58 @@ def processMVHD(file, box_len):
 def processTRAK(file, box_len):
     processChildren(file, box_len)
 
+# ISO/IEC 14496-12, Section 8.5, Track Header Box
+# Box Type:     'tkhd'
+# Container:    Track Box ('trak')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+######################### For version == 0 ###########################
+#               4           creation_time       32
+#               8           modification_time   32
+#               12          track_ID            32
+#               16          reserved            32
+#               20          duration            32
+def processTKHD(file, box_len):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    print(flags)
+    if version_info == 0:
+        try:
+            raw_creation_time = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        creation_time = struct.unpack('>l', raw_creation_time)[0]
+        print("Creation time: " + 
+            datetime.datetime.fromtimestamp(
+                creation_time
+            ).strftime('%Y-%m-%d %H:%M:%S')
+        )
+        try:
+            raw_modification_time = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        modification_time = struct.unpack('>l', raw_modification_time)[0]
+        print("Modification time: " + 
+            datetime.datetime.fromtimestamp(
+                modification_time
+            ).strftime('%Y-%m-%d %H:%M:%S')
+        )
+ 
+    advanceNBytes(file, box_len-12)
+
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
 # Box Format:   [Offset,B]  [Field]             [Size, b]
@@ -311,6 +363,8 @@ def readMp4Box(file):
             processMVHD(file, box_size-read_offset)
         elif box_type == 'trak':
             processTRAK(file, box_size-read_offset)
+        elif box_type == 'tkhd':
+            processTKHD(file, box_size-read_offset)
         else:
             # TODO: add handling for more box types
             advanceNBytes(file, box_size - read_offset)
