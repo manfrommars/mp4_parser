@@ -238,7 +238,7 @@ def processMVHD(file, box_len):
             raise err
         duration = struct.unpack('>L', raw_duration)[0]
         print("Duration: " + str(duration))
-    elif version_info == 1:
+    else:
         # TODO: implement 64-bit timestamps
         raise FormatError
     try:
@@ -296,6 +296,14 @@ def processTRAK(file, box_len):
 #               12          track_ID            32
 #               16          reserved            32
 #               20          duration            32
+#               24          reserved            64
+#               32          layer               16
+#               34          alternate_group     16
+#               36          volume              16
+#               38          reserved            16
+#               40          matrix              32*9
+#               76          width               32
+#               80          height              32
 def processTKHD(file, box_len):
     try:
         raw_version_info = readFromFile(file, 1)
@@ -330,8 +338,146 @@ def processTKHD(file, box_len):
                 modification_time
             ).strftime('%Y-%m-%d %H:%M:%S')
         )
- 
-    advanceNBytes(file, box_len-12)
+        try:
+            raw_track_ID = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        track_ID = struct.unpack('>l', raw_track_ID)[0]
+        print("Track ID: " + str(track_ID))
+        advanceNBytes(file, 4)
+        try:
+            raw_duration = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        duration = struct.unpack('>l', raw_duration)[0]
+    else:
+        # TODO: implement 64-bit timestamps
+        raise FormatError
+    advanceNBytes(file, 8)
+
+    try:
+        raw_layer = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    layer = struct.unpack('>h', raw_layer)[0]
+    print("Layer: " + str(layer))
+
+    try:
+        raw_alternate_group = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    alternate_group = struct.unpack('>h', raw_alternate_group)[0]
+    print("Alternate group: " + str(alternate_group))
+
+    try:
+        raw_volume = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    volume = struct.unpack('>h', raw_volume)
+    advanceNBytes(file, 2)
+    # Read matrix
+    try:
+        raw_matrix = readFromFile(file, 36)
+    except FileReadError as err:
+        raise err
+    matrix = struct.unpack('>IIIIIIIII', raw_matrix)
+
+    try:
+        raw_width = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
+    width = struct.unpack('>l', raw_width)[0]
+    print('Width: ' + str(width))
+
+    try:
+        raw_height = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
+    height = struct.unpack('>l', raw_height)[0]
+    print('Height: ' + str(height))
+
+# ISO/IEC 14496-12, Section 8.7, Media Box
+# Box Type:     'mdia'
+# Container:    Track Box ('trak')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
+def processMDIA(file, box_len):
+    processChildren(file, box_len)
+
+# ISO/IEC 14496-12, Section 8.8, Media Header Box
+# Box Type:     'mdhd'
+# Container:    Media Box ('mdia')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+######################### For version == 0 ###########################
+#               4           creation_time       32
+#               8           modification_time   32
+#               12          timescale           32
+#               16          duration            32
+def processMDHD(file, box_len):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    print(flags)
+    if version_info == 0:
+        try:
+            raw_creation_time = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        creation_time = struct.unpack('>L', raw_creation_time)[0]
+        print("Creation time: " + 
+            datetime.datetime.fromtimestamp(
+                creation_time
+            ).strftime('%Y-%m-%d %H:%M:%S')
+        )
+        try:
+            raw_modification_time = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        modification_time = struct.unpack('>l', raw_modification_time)[0]
+        print("Modification time: " + 
+            datetime.datetime.fromtimestamp(
+                modification_time
+            ).strftime('%Y-%m-%d %H:%M:%S')
+        )
+        try:
+            raw_timescale = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        timescale = struct.unpack('>l', raw_timescale)[0]
+        print("Timescale: " + str(timescale))
+        try:
+            raw_duration = readFromFile(file, 4)
+        except FileReadError as err:
+            raise err
+        duration = struct.unpack('>L', raw_duration)[0]
+        print("Duration: " + str(duration))
+    else:
+        # TODO: implement 64-bit timestamps
+        raise FormatError
+    # Read the ISO-639-2/T language code and the padding bit
+    try:
+        raw_language = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    language = struct.unpack('>H', raw_language)[0]
+    print("Language code: " + str(language))
+
+    advanceNBytes(file, 2)
 
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
@@ -365,8 +511,13 @@ def readMp4Box(file):
             processTRAK(file, box_size-read_offset)
         elif box_type == 'tkhd':
             processTKHD(file, box_size-read_offset)
+        elif box_type == 'mdia':
+            processMDIA(file, box_size-read_offset)
+        elif box_type == 'mdhd':
+            processMDHD(file, box_size-read_offset)
         else:
             # TODO: add handling for more box types
+            print("Not handling: " + box_type)
             advanceNBytes(file, box_size - read_offset)
     except FormatError as e:
         print("Formatting error in box type: ", e.box_type)
