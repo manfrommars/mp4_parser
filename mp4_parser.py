@@ -488,7 +488,7 @@ def processMDHD(file, box_len):
     # Skip bytes defined to 0
     advanceNBytes(file, 2)
 
-# ISO/IEC 14496-12, Section 8.8, Handler Reference Box
+# ISO/IEC 14496-12, Section 8.9, Handler Reference Box
 # Box Type:     'hdlr'
 # Container:    Media Box ('mdia') or Meta Box ('meta')
 # Mandatory:    Yes
@@ -545,6 +545,16 @@ def processHDLR(file, box_len):
     else:
         dbg_print(name)
 
+# ISO/IEC 14496-12, Section 8.10, Media Information Box
+# Box Type:     'minf'
+# Container:    Media Box ('mdia')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
+def processMINF(file, box_len):
+    processChildren(file, box_len)
+
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
 # Box Format:   [Offset,B]  [Field]             [Size, b]
@@ -571,6 +581,8 @@ def readMp4Box(file):
             processFTYP(file, box_size-read_offset)
         elif box_type == 'moov':
             processMOOV(file, box_size-read_offset)
+        elif box_type == 'mdat':
+            processMDAT(file, box_size-read_offset)
         elif box_type == 'mvhd':
             processMVHD(file, box_size-read_offset)
         elif box_type == 'trak':
@@ -583,6 +595,8 @@ def readMp4Box(file):
             processMDHD(file, box_size-read_offset)
         elif box_type == 'hdlr':
             processHDLR(file, box_size-read_offset)
+        elif box_type == 'minf':
+            processMINF(file, box_size-read_offset)
         else:
             # TODO: add handling for more box types
             print("Not handling: " + box_type)
