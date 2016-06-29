@@ -86,6 +86,21 @@ def readBoxHeader(file):
 
     return (box_size, box_type, read_offset)
 
+# Read version and flag info
+def readFullBoxHeader(file):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+
+    dbg_print("FullBox, v"+str(version_info)+" flags: "+str(flags))
+
 # Advance the file read pointer rather than reading data to memory
 def advanceNBytes(file, num_bytes):
     start_offset = file.tell()
@@ -567,19 +582,7 @@ def processMINF(file, box_len):
 #               4           graphicsmode        16
 #               6           opcolor             16*3
 def processVMHD(file, box_len):
-    try:
-        raw_version_info = readFromFile(file, 1)
-    except FileReadError as err:
-        raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
-
+    readFullBoxHeader(file)
     try:
         raw_graphicsmode = readFromFile(file, 2)
     except FileReadError as err:
