@@ -100,6 +100,7 @@ def readFullBoxHeader(file):
     flags = struct.unpack('>BBB', raw_flags)
 
     dbg_print("FullBox, v"+str(version_info)+" flags: "+str(flags))
+    return (version_info, flags)
 
 # Advance the file read pointer rather than reading data to memory
 def advanceNBytes(file, num_bytes):
@@ -125,6 +126,42 @@ def dbg_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
 ## Box Types
 ######################################################################
 
+# Supported box types: Box, FullBox
+supported_boxes = {
+    'ftyp':['Box',
+             (4, 'u', 'major_brand'),
+             (4, 'u', 'minor_version'),
+             ('E', 'u', 'compatible_brands')]
+    }
+
+box_types = ['Box', 'FullBox']
+
+# For each defined box, read its format from the dictionary
+def processBox(file, box_len, info_list):
+    box_info = {}
+    # First item is always "Box" or "FullBox"
+    if info_list[0] not in box_types:
+        raise FileReadError
+
+    bytes_read = 0
+
+    for item in info_list[1:]:
+        # item tuple contents:
+        # size (in bits)
+        # signed/unsigned + array
+        # name
+        if item[0] is not 'E':
+            try:
+                temp = readFromFile(file, item[0])
+            except FileReadError as err:
+                raise err
+            bytes_read = bytes_read + item[0]
+        else:
+            try:
+                temp = readFromFile(file, box_len-bytes_read)
+            except FileReadError as err:
+                raise err
+        
 # ISO/IEC 14496-12, Section 4.3, File Type Box
 # Box Type:     'ftyp'
 # Container:    File
@@ -217,17 +254,9 @@ def processMDAT(file, box_len):
 # remainder of the box
 def processMVHD(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
     if version_info == 0:
         try:
             raw_creation_time = readFromFile(file, 4)
@@ -329,17 +358,9 @@ def processTRAK(file, box_len):
 #               80          height              32
 def processTKHD(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
     if version_info == 0:
         try:
             raw_creation_time = readFromFile(file, 4)
@@ -445,17 +466,9 @@ def processMDIA(file, box_len):
 #               16          duration            32
 def processMDHD(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
     if version_info == 0:
         try:
             raw_creation_time = readFromFile(file, 4)
@@ -519,17 +532,9 @@ def processMDHD(file, box_len):
 # Last field contains a string which goes to the end of the file
 def processHDLR(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
     # Only version info == 0 is defined
     if version_info is not 0:
         raise FormatError
@@ -610,17 +615,9 @@ def processVMHD(file, box_len):
 #               6           reserved            16
 def processSMHD(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
 
     try:
         raw_balance = readFromFile(file, 2)
@@ -665,17 +662,9 @@ def processSTBL(file, box_len):
 #               8           DataEntryBox        n*entry_count
 def processDREF(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
 
     try:
         raw_entry_count = readFromFile(file, 4)
@@ -698,17 +687,9 @@ def processDREF(file, box_len):
 #               4           location            n
 def processURL(file, box_len):
     try:
-        raw_version_info = readFromFile(file, 1)
+        (version_info, flags) = readFullBoxHeader(file)
     except FileReadError as err:
         raise err
-    version_info = struct.unpack('>B', raw_version_info)[0]
-    dbg_print(version_info)
-    try:
-        raw_flags = readFromFile(file, 3)
-    except FileReadError as err:
-        raise err
-    flags = struct.unpack('>BBB', raw_flags)
-    dbg_print(flags)
 
     # Read the remainder of the box as a UTF-8
     try:
@@ -746,7 +727,9 @@ def readMp4Box(file):
 
     try:
         # Process each type
-        if box_type == 'ftyp':
+        if box_type in supported_boxes:
+            processBox(file, box_size-read_offset, supported_boxes[box_type])
+        elif box_type == 'ftyp':
             processFTYP(file, box_size-read_offset)
         elif box_type == 'moov':
             processMOOV(file, box_size-read_offset)
