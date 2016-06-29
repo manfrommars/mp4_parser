@@ -555,6 +555,172 @@ def processHDLR(file, box_len):
 def processMINF(file, box_len):
     processChildren(file, box_len)
 
+# ISO/IEC 14496-12, Section 8.11.2, Video Media Header Box
+# Box Type:     'vmhd'
+# Container:    Media Information Box ('minf')
+# Mandatory:    Yes
+# Quantity:     Exactly one specific media header shall be present
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           graphicsmode        16
+#               6           opcolor             16*3
+def processVMHD(file, box_len):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    dbg_print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    dbg_print(flags)
+
+    try:
+        raw_graphicsmode = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    graphicsmode = struct.unpack('>H', raw_graphicsmode)[0]
+    dbg_print(graphicsmode)
+
+    try:
+        raw_opcolor = readFromFile(file, 6)
+    except FileReadError as err:
+        raise err
+    opcolor = struct.unpack('>HHH', raw_opcolor)
+    dbg_print(opcolor)
+
+# ISO/IEC 14496-12, Section 8.11.3, Sound Media Header Box
+# Box Type:     'smhd'
+# Container:    Media Information Box ('minf')
+# Mandatory:    Yes
+# Quantity:     Exactly one specific media header shall be present
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           balance             16
+#               6           reserved            16
+def processSMHD(file, box_len):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    dbg_print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    dbg_print(flags)
+
+    try:
+        raw_balance = readFromFile(file, 2)
+    except FileReadError as err:
+        raise err
+    balance = struct.unpack('>H', raw_balance)[0]
+    dbg_print(balance)
+
+    advanceNBytes(file, 2)
+
+# ISO/IEC 14496-12, Section 8.12, Data Information Box
+# Box Type:     'dinf'
+# Container:    Media Information Box ('mdia') OR
+#               Meta Box ('meta')
+# Mandatory:    Yes (within 'minf'), No (within 'meta')
+# Quantity:     Exactly one
+#
+# Contains other boxes
+def processDINF(file, box_len):
+    processChildren(file, box_len)
+
+# ISO/IEC 14496-12, Section 8.14, Sample Table Box
+# Box Type:     'stbl'
+# Container:    Media Information Box ('minf')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
+def processSTBL(file, box_len):
+    processChildren(file, box_len)
+
+# ISO/IEC 14496-12, Section 8.13, Data Reference Box
+# Box Type:     'dref'
+# Container:    Data Information Box ('dinf')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           entry_count         32
+#               8           DataEntryBox        n*entry_count
+def processDREF(file, box_len):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    dbg_print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    dbg_print(flags)
+
+    try:
+        raw_entry_count = readFromFile(file, 4)
+    except FileReadError as err:
+        raise err
+    entry_count = struct.unpack('>L', raw_entry_count)[0]
+
+    for i in range(0, entry_count):
+        processChildren(file, box_len-8)
+
+# ISO/IEC 14496-12, Section 8.13, Data Reference Box
+# Box Type:     'url'
+# Container:    Data Information Box ('dinf')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           location            n
+def processURL(file, box_len):
+    try:
+        raw_version_info = readFromFile(file, 1)
+    except FileReadError as err:
+        raise err
+    version_info = struct.unpack('>B', raw_version_info)[0]
+    dbg_print(version_info)
+    try:
+        raw_flags = readFromFile(file, 3)
+    except FileReadError as err:
+        raise err
+    flags = struct.unpack('>BBB', raw_flags)
+    dbg_print(flags)
+
+    # Read the remainder of the box as a UTF-8
+    try:
+        raw_url = readFromFile(file, box_len - 4)
+    except FileReadError as err:
+        raise err
+
+    url = raw_url.decode('utf-8')
+    dbg_print("URL: ", end="")
+    if url is '\0':
+        dbg_print("(None)")
+    else:
+        dbg_print(url)
+
+
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
 # Box Format:   [Offset,B]  [Field]             [Size, b]
@@ -597,6 +763,18 @@ def readMp4Box(file):
             processHDLR(file, box_size-read_offset)
         elif box_type == 'minf':
             processMINF(file, box_size-read_offset)
+        elif box_type == 'vmhd':
+            processVMHD(file, box_size-read_offset)
+        elif box_type == 'smhd':
+            processSMHD(file, box_size-read_offset)
+        elif box_type == 'dinf':
+            processDINF(file, box_size-read_offset)
+        elif box_type == 'stbl':
+            processSTBL(file, box_size-read_offset)
+        elif box_type == 'dref':
+            processDREF(file, box_size-read_offset)
+        elif box_type == 'url ':
+            processURL(file, box_size-read_offset)
         else:
             # TODO: add handling for more box types
             print("Not handling: " + box_type)
