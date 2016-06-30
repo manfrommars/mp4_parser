@@ -131,37 +131,55 @@ supported_boxes = {
     'ftyp':['Box',
              (4, 'u', 'major_brand'),
              (4, 'u', 'minor_version'),
-             ('E', 'u', 'compatible_brands')]
+             (0, 'c', 'compatible_brands', 4)]
     }
 
 box_types = ['Box', 'FullBox']
 
 # For each defined box, read its format from the dictionary
-def processBox(file, box_len, info_list):
-    box_info = {}
+def processBox(file, box_len, read_offset, box_type):
+    box_info = {'size': box_len,
+                'type': box_type }
+    info_list = supported_boxes[box_type]
     # First item is always "Box" or "FullBox"
     if info_list[0] not in box_types:
         raise FileReadError
 
-    bytes_read = 0
+    print('type: ' +     box_info['type']       )
+    print('size: ' + str(box_info['size']) + 'B')
 
     for item in info_list[1:]:
         # item tuple contents:
         # size (in bits)
-        # signed/unsigned + array
+        # signed/unsigned/chars
         # name
-        if item[0] is not 'E':
+        # split size for arrays (if necessary)
+        if item[0] != 0:
             try:
                 temp = readFromFile(file, item[0])
             except FileReadError as err:
                 raise err
-            bytes_read = bytes_read + item[0]
+            read_offset = read_offset + item[0]
         else:
             try:
-                temp = readFromFile(file, box_len-bytes_read)
+                temp = readFromFile(file, box_len-read_offset)
             except FileReadError as err:
                 raise err
-        
+        if item[1] == 'c':
+            # UTF-8 string
+            temp = temp.decode('utf-8')
+            if len(item) == 4:
+                temp = [temp[x:x+4] for x in range(0,len(temp),4)]
+            box_info[item[2]]=temp
+            print(item[2] + ": " + str(box_info[item[2]]))
+        elif item[1] == 'u':
+            # Unsigned value
+            if item[0] == 4:
+                temp = struct.unpack('>L', temp)[0]
+            box_info[item[2]]=temp
+            print(item[2] + ": " + str(box_info[item[2]]))
+    return box_info
+            
 # ISO/IEC 14496-12, Section 4.3, File Type Box
 # Box Type:     'ftyp'
 # Container:    File
@@ -728,7 +746,7 @@ def readMp4Box(file):
     try:
         # Process each type
         if box_type in supported_boxes:
-            processBox(file, box_size-read_offset, supported_boxes[box_type])
+            processBox(file, box_size, read_offset, box_type)
         elif box_type == 'ftyp':
             processFTYP(file, box_size-read_offset)
         elif box_type == 'moov':
