@@ -131,7 +131,11 @@ supported_boxes = {
     'ftyp':['Box',
              (4, 'u', 'major_brand'),
              (4, 'u', 'minor_version'),
-             (0, 'c', 'compatible_brands', 4)]
+             (0, 'c', 'compatible_brands', 4)],
+    'moov':['Box',
+             (0, 'a', 'children')],
+    'mdat':['Box',
+             (0, 'b', 'data_len')],
     }
 
 box_types = ['Box', 'FullBox']
@@ -151,7 +155,7 @@ def processBox(file, box_len, read_offset, box_type):
     for item in info_list[1:]:
         # item tuple contents:
         # size (in bits)
-        # signed/unsigned/chars
+        # signed/unsigned/chars/children
         # name
         # split size for arrays (if necessary)
         if item[0] != 0:
@@ -161,10 +165,13 @@ def processBox(file, box_len, read_offset, box_type):
                 raise err
             read_offset = read_offset + item[0]
         else:
-            try:
-                temp = readFromFile(file, box_len-read_offset)
-            except FileReadError as err:
-                raise err
+            if item[1] == 'a':
+                readMp4Box(file)
+            else:
+                try:
+                    temp = readFromFile(file, box_len-read_offset)
+                except FileReadError as err:
+                    raise err
         if item[1] == 'c':
             # UTF-8 string
             temp = temp.decode('utf-8')
@@ -178,6 +185,10 @@ def processBox(file, box_len, read_offset, box_type):
                 temp = struct.unpack('>L', temp)[0]
             box_info[item[2]]=temp
             print(item[2] + ": " + str(box_info[item[2]]))
+        elif item[1] == 'b':
+            # Binary data
+            box_info[item[2]] = box_len - read_offset
+            advanceNBytes(file, box_len - read_offset)
     return box_info
             
 # ISO/IEC 14496-12, Section 4.3, File Type Box
