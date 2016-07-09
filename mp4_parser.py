@@ -42,6 +42,7 @@ class FileReadError(FormatError):
 def readFromFile(file, num_bytes):
     raw_data = file.read(num_bytes)
     actual_bytes = len(raw_data)
+    dbg_print('Reading ' + str(num_bytes)+ 'B from file')
     if actual_bytes < num_bytes:
         raise FileReadError(file.name, num_bytes, actual_bytes)
     return raw_data
@@ -107,6 +108,7 @@ def advanceNBytes(file, num_bytes):
     start_offset = file.tell()
     file.seek(num_bytes, 1)
     end_offset = file.tell()
+    dbg_print('Advancing ' + str(num_bytes)+ 'B in file')
     if end_offset - start_offset < num_bytes:
         raise FileReadError(file.name, num_bytes, actual_bytes)
 
@@ -127,6 +129,9 @@ def dbg_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
 ######################################################################
 
 # Supported box types: Box, FullBox
+box_types = ['Box', 'FullBox']
+versions  = [0,1]
+
 supported_boxes = {
     'ftyp':['Box',
              (4, 'u', 'major_brand'),
@@ -136,9 +141,37 @@ supported_boxes = {
              (0, 'a', 'children')],
     'mdat':['Box',
              (0, 'b', 'data_len')],
+    'mvhd':['FullBox',
+             ([4,8],   'u', 'creation_time'),
+             ([4,8],   'u', 'modification_time'),
+             ([4,4],   'u', 'timescale'),
+             ([4,8],   'u', 'duration'),
+             ([4,4],   'u', 'rate'),
+             ([2,2],   'u', 'volume'),
+             ([2,2],   'N'),
+             ([8,8],   'N'),
+             ([36,36], 'uuuuuuuuu', 'matrix'),
+             ([24,24], 'N'),
+             ([4,4],   'u', 'next_track_ID')],
+    'trak':['Box',
+             (0, 'a', 'children')],
+    'tkhd':['FullBox',
+             ([4,8],   'u', 'creation_time'),
+             ([4,8],   'u', 'modification_time'),
+             ([4,4],   'u', 'track_ID'),
+             ([4,4],   'N'),
+             ([4,8],   'u', 'duration'),
+             ([8,8],   'N'),
+             ([2,2],   's', 'layer'),
+             ([2,2],   's', 'alternate_group'),
+             ([2,2],   's', 'volume'),
+             ([2,2],   'N'),
+             ([36,36], 'uuuuuuuuu', 'matrix'),
+             ([4,4],   'u', 'width'),
+             ([4,4],   'u', 'height')],
+            
     }
 
-box_types = ['Box', 'FullBox']
 
 # For each defined box, read its format from the dictionary
 def processBox(file, box_len, read_offset, box_type):
@@ -152,18 +185,33 @@ def processBox(file, box_len, read_offset, box_type):
     print('type: ' +     box_info['type']       )
     print('size: ' + str(box_info['size']) + 'B')
 
+    if info_list[0] is 'FullBox':
+        try:
+            (box_info['version'],
+             box_info['flags']) = readFullBoxHeader(file)
+        except FileReadError as err:
+            raise err
+        print('version: ' + str(box_info['version']))
+        print('flags: ' + str(box_info['flags']))
+
     for item in info_list[1:]:
         # item tuple contents:
         # size (in bits)
-        # signed/unsigned/chars/children
+        # signed/unsigned/chars/children/binary data
         # name
         # split size for arrays (if necessary)
-        if item[0] != 0:
+        if 'version' in box_info:
+            size = item[0][box_info['version']]
+        else:
+            size = item[0]
+        if item[1] == 'N':
+            advanceNBytes(file, size)
+        elif size != 0:
             try:
-                temp = readFromFile(file, item[0])
+                temp = readFromFile(file, size)
             except FileReadError as err:
                 raise err
-            read_offset = read_offset + item[0]
+            read_offset = read_offset + size
         else:
             if item[1] == 'a':
                 readMp4Box(file)
@@ -172,23 +220,34 @@ def processBox(file, box_len, read_offset, box_type):
                     temp = readFromFile(file, box_len-read_offset)
                 except FileReadError as err:
                     raise err
+        # After reading in the data, process the type
         if item[1] == 'c':
             # UTF-8 string
             temp = temp.decode('utf-8')
             if len(item) == 4:
                 temp = [temp[x:x+4] for x in range(0,len(temp),4)]
+            else:
+                print("Unhandled string case")
             box_info[item[2]]=temp
             print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'u':
             # Unsigned value
-            if item[0] == 4:
+            if size == 2:
+                temp = struct.unpack('>H', temp)[0]
+            elif size == 4:
                 temp = struct.unpack('>L', temp)[0]
+            else:
+                print("Unhandled size: " + str(size))
             box_info[item[2]]=temp
             print(item[2] + ": " + str(box_info[item[2]]))
+        elif item[1] == 'uuuuuuuuu':
+           box_info[item[2]] = struct.unpack('>LLLLLLLLL', temp)
+           print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'b':
             # Binary data
             box_info[item[2]] = box_len - read_offset
             advanceNBytes(file, box_len - read_offset)
+
     return box_info
             
 # ISO/IEC 14496-12, Section 4.3, File Type Box
@@ -796,7 +855,6 @@ def readMp4Box(file):
             advanceNBytes(file, box_size - read_offset)
     except FormatError as e:
         print("Formatting error in box type: ", e.box_type)
-
     return box_size
 
 # Function reads an MP4 file and parses all of the box types it
