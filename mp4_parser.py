@@ -169,7 +169,20 @@ supported_boxes = {
              ([36,36], 'uuuuuuuuu', 'matrix'),
              ([4,4],   'u', 'width'),
              ([4,4],   'u', 'height')],
-            
+    'mdia':['Box',
+            (0, 'a', 'children')],
+    'mdhd':['FullBox',
+             ([4,8],   'u', 'creation_time'),
+             ([4,8],   'u', 'modification_time'),
+             ([4,4],   'u', 'timescale'),
+             ([4,8],   'u', 'duration'),
+             ([2,2],   'i', 'language'),
+             ([2,2],   'N')],
+##    'hdlr':['FullBox',
+##             ([4,4],   'N'),
+##             ([4,4],   'c', 'handler_type', 4),
+##             ([12,12], 'N'),
+##             ([0,0],   'str', 'name')],
     }
 
 
@@ -204,7 +217,10 @@ def processBox(file, box_len, read_offset, box_type):
             size = item[0][box_info['version']]
         else:
             size = item[0]
+        print('Read offset: ' + str(read_offset))
+        print('Read size: ' + str(box_len-read_offset))
         if item[1] == 'N':
+            read_offset = read_offset + size
             advanceNBytes(file, size)
         elif size != 0:
             try:
@@ -227,7 +243,7 @@ def processBox(file, box_len, read_offset, box_type):
             if len(item) == 4:
                 temp = [temp[x:x+4] for x in range(0,len(temp),4)]
             else:
-                print("Unhandled string case")
+                print("Unhandled string case: " + str(len(item)))
             box_info[item[2]]=temp
             print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'u':
@@ -241,12 +257,25 @@ def processBox(file, box_len, read_offset, box_type):
             box_info[item[2]]=temp
             print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'uuuuuuuuu':
-           box_info[item[2]] = struct.unpack('>LLLLLLLLL', temp)
-           print(item[2] + ": " + str(box_info[item[2]]))
+            box_info[item[2]] = struct.unpack('>LLLLLLLLL', temp)
+            print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'b':
             # Binary data
             box_info[item[2]] = box_len - read_offset
             advanceNBytes(file, box_len - read_offset)
+        elif item[1] == 'i':
+            # ISO-639-2/T language code
+            # 5 bits each, an offset from 0x60
+            offset0 = bytes([temp[1] & b'\x1f'[0]])
+            offset0 = bytes([offset0[0] + b'\x60'[0]]).decode('unicode_escape')
+            offset1 = bytes([(temp[1] >> 5) | (temp[0] << 1) & b'\x1f'[0]])
+            offset1 = bytes([offset1[0] + b'\x60'[0]]).decode('unicode_escape')
+            offset2 = bytes([(temp[0] >> 1) & b'\x1f'[0]])
+            offset2 = bytes([offset2[0] + b'\x60'[0]]).decode('unicode_escape')
+            box_info[item[2]] = offset2+offset1+offset0
+            print(item[2] + ": " + str(box_info[item[2]]))
+        elif item[1] == 'str':
+            print(str(temp.decode('utf-8')))
 
     return box_info
             
