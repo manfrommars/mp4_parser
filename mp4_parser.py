@@ -188,6 +188,18 @@ supported_boxes = {
     'vmhd':['FullBox',
              ([2,2], 'u', 'graphicsmode'),
              ([6,6], 'uuu', 'opcolor')],
+    'smhd':['FullBox',
+             ([2,2], 'u', 'balance'),
+             ([2,2], 'N')],
+    'dinf':['Box',
+            (0, 'a', 'children')],
+    'stbl':['Box',
+            (0, 'a', 'children')],
+    'dref':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'aa', 'data_entry')],
+    'url ':['FullBox',
+            ([0,0], 'str', 'location')],
     }
 
 
@@ -237,6 +249,9 @@ def processBox(file, box_len, read_offset, box_type):
         else:
             if item[1] == 'a':
                 readMp4Box(file)
+            elif item[1] == 'aa':
+                for i in range(0, box_info['entry_count']):
+                    processChildren(file, box_len-read_offset)
             else:
                 try:
                     temp = readFromFile(file, box_len-read_offset)
