@@ -178,11 +178,11 @@ supported_boxes = {
              ([4,8],   'u', 'duration'),
              ([2,2],   'i', 'language'),
              ([2,2],   'N')],
-##    'hdlr':['FullBox',
-##             ([4,4],   'N'),
-##             ([4,4],   'c', 'handler_type', 4),
-##             ([12,12], 'N'),
-##             ([0,0],   'str', 'name')],
+    'hdlr':['FullBox',
+             ([4,4],   'N'),
+             ([4,4],   'c', 'handler_type', 4),
+             ([12,12], 'N'),
+             ([0,0],   'str', 'name')],
     }
 
 
@@ -206,6 +206,7 @@ def processBox(file, box_len, read_offset, box_type):
             raise err
         print('version: ' + str(box_info['version']))
         print('flags: ' + str(box_info['flags']))
+        read_offset = read_offset + 4
 
     for item in info_list[1:]:
         # item tuple contents:
@@ -217,8 +218,8 @@ def processBox(file, box_len, read_offset, box_type):
             size = item[0][box_info['version']]
         else:
             size = item[0]
-        print('Read offset: ' + str(read_offset))
-        print('Read size: ' + str(box_len-read_offset))
+        #print('Read offset: ' + str(read_offset))
+        #print('Read size: ' + str(box_len-read_offset))
         if item[1] == 'N':
             read_offset = read_offset + size
             advanceNBytes(file, size)
@@ -275,8 +276,11 @@ def processBox(file, box_len, read_offset, box_type):
             box_info[item[2]] = offset2+offset1+offset0
             print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'str':
-            print(str(temp.decode('utf-8')))
-
+            box_info[item[2]] = temp.decode('utf-8')
+            if box_info[item[2]] != '\0':
+                print(item[2] + ": " + str(box_info[item[2]]))
+            else:
+                print(item[2] + ": <NULL>")
     return box_info
             
 # ISO/IEC 14496-12, Section 4.3, File Type Box
@@ -655,6 +659,7 @@ def processHDLR(file, box_len):
     # Only version info == 0 is defined
     if version_info is not 0:
         raise FormatError
+    print('HDLR box_len: ' + str(box_len))
 
     # Skip defined 0s
     advanceNBytes(file, 4)
