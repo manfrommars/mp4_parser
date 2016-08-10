@@ -183,6 +183,11 @@ supported_boxes = {
              ([4,4],   'c', 'handler_type', 4),
              ([12,12], 'N'),
              ([0,0],   'str', 'name')],
+    'minf':['Box',
+            (0, 'a', 'children')],
+    'vmhd':['FullBox',
+             ([2,2], 'u', 'graphicsmode'),
+             ([6,6], 'uuu', 'opcolor')],
     }
 
 
@@ -256,6 +261,13 @@ def processBox(file, box_len, read_offset, box_type):
             else:
                 print("Unhandled size: " + str(size))
             box_info[item[2]]=temp
+            print(item[2] + ": " + str(box_info[item[2]]))
+        elif item[1] == 'uuu':
+            # Unsigned values
+            if size == 6:
+                box_info[item[2]] = struct.unpack('>HHH', temp)
+            else:
+                print("ERROR: unhandled size")
             print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'uuuuuuuuu':
             box_info[item[2]] = struct.unpack('>LLLLLLLLL', temp)
