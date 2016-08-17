@@ -200,6 +200,19 @@ supported_boxes = {
             ([0,0], 'aa', 'data_entry')],
     'url ':['FullBox',
             ([0,0], 'str', 'location')],
+    'stts':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'aaa', ['sample_count', 'sample_delta'])],
+    'ctts':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'aaa', ['sample_count', 'sample_offset'])],
+    'stss':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'aaa', ['sample_number'])],
+    'stsz':['FullBox',
+            ([4,4], 'u', 'sample_size'),
+            ([4,4], 'u', 'sample_count'),
+            ([0,0], 'A', 'entry_size')],
     }
 
 
@@ -252,6 +265,31 @@ def processBox(file, box_len, read_offset, box_type):
             elif item[1] == 'aa':
                 for i in range(0, box_info['entry_count']):
                     processChildren(file, box_len-read_offset)
+            elif item[1] == 'aaa':
+                for i in range(0, box_info['entry_count']):
+                    for j in range(0, len(item[2])):
+                        try:
+                            temp = readFromFile(file, 4)
+                        except FileReadError as err:
+                            raise err
+                        read_offset = read_offset + 4
+                        # Put together a list of entries
+                        if item[2][j] in box_info:
+                            box_info[item[2][j]].append(struct.unpack('>L', temp)[0])
+                        else:
+                            box_info[item[2][j]]=[struct.unpack('>L', temp)[0]]
+            elif item[1] == 'A':
+                if box_info['sample_size'] == 0:
+                    for i in range(0, box_info['sample_count']):
+                        try:
+                            temp = readFromFile(file, 4)
+                        except FileReadError as err:
+                            raise err
+                        read_offset = read_offset + 4
+                        if item[2] in box_info:
+                            box_info[item[2]].append(struct.unpack('>L', temp)[0])
+                        else:
+                            box_info[item[2]]=[struct.unpack('>L', temp)[0]]
             else:
                 try:
                     temp = readFromFile(file, box_len-read_offset)
@@ -878,38 +916,6 @@ def readMp4Box(file):
         # Process each type
         if box_type in supported_boxes:
             processBox(file, box_size, read_offset, box_type)
-        elif box_type == 'ftyp':
-            processFTYP(file, box_size-read_offset)
-        elif box_type == 'moov':
-            processMOOV(file, box_size-read_offset)
-        elif box_type == 'mdat':
-            processMDAT(file, box_size-read_offset)
-        elif box_type == 'mvhd':
-            processMVHD(file, box_size-read_offset)
-        elif box_type == 'trak':
-            processTRAK(file, box_size-read_offset)
-        elif box_type == 'tkhd':
-            processTKHD(file, box_size-read_offset)
-        elif box_type == 'mdia':
-            processMDIA(file, box_size-read_offset)
-        elif box_type == 'mdhd':
-            processMDHD(file, box_size-read_offset)
-        elif box_type == 'hdlr':
-            processHDLR(file, box_size-read_offset)
-        elif box_type == 'minf':
-            processMINF(file, box_size-read_offset)
-        elif box_type == 'vmhd':
-            processVMHD(file, box_size-read_offset)
-        elif box_type == 'smhd':
-            processSMHD(file, box_size-read_offset)
-        elif box_type == 'dinf':
-            processDINF(file, box_size-read_offset)
-        elif box_type == 'stbl':
-            processSTBL(file, box_size-read_offset)
-        elif box_type == 'dref':
-            processDREF(file, box_size-read_offset)
-        elif box_type == 'url ':
-            processURL(file, box_size-read_offset)
         else:
             # TODO: add handling for more box types
             print("Not handling: " + box_type)
