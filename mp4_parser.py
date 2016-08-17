@@ -133,14 +133,66 @@ box_types = ['Box', 'FullBox']
 versions  = [0,1]
 
 supported_boxes = {
+# ISO/IEC 14496-12, Section 4.3, File Type Box
+# Box Type:     'ftyp'
+# Container:    File
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           major_brand         32
+#               4           minor_version       32
+#               8           compatible_brands   32 * n
+# Last field is an array of 4x UTF-8 values and will fill the
+# remainder of the box
     'ftyp':['Box',
             (4, 'u', 'major_brand'),
             (4, 'u', 'minor_version'),
             (0, 'c', 'compatible_brands', 4)],
+# ISO/IEC 14496-12, Section 8.1, Movie Box
+# Box Type:     'moov'
+# Container:    File
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
     'moov':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.2, Media Data Box
+# Box Type:     'mdat'
+# Container:    File
+# Mandatory:    No
+# Quantity:     Any number
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           data                8 * n
+# Last field is an array of the media bytes
     'mdat':['Box',
             (0, 'b', 'data_len')],
+# ISO/IEC 14496-12, Section 8.3, Movie Header Box
+# Box Type:     'mvhd'
+# Container:    Movie Box ('moov')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+######################### For version == 0 ###########################
+#               4           creation_time       32
+#               8           modification_time   32
+#               12          timescale           32
+#               16          duration            32
+#               20          rate                32
+#               24          volume              16
+#               26          reserved            16
+#               28          reserved            32*2
+#               36          matrix              32*9
+#               72          pre_defined         32*6
+#               96          next_track_ID       32
+#
+# Last field is an array of 4x UTF-8 values and will fill the
+# remainder of the box
     'mvhd':['FullBox',
             ([4,8],   'u', 'creation_time'),
             ([4,8],   'u', 'modification_time'),
@@ -153,8 +205,38 @@ supported_boxes = {
             ([36,36], 'uuuuuuuuu', 'matrix'),
             ([24,24], 'N'),
             ([4,4],   'u', 'next_track_ID')],
+# ISO/IEC 14496-12, Section 8.4, Track Box
+# Box Type:     'trak'
+# Container:    Movie Box ('moov')
+# Mandatory:    Yes
+# Quantity:     One or more
+#
+# Contains other boxes
     'trak':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.5, Track Header Box
+# Box Type:     'tkhd'
+# Container:    Track Box ('trak')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+######################### For version == 0 ###########################
+#               4           creation_time       32
+#               8           modification_time   32
+#               12          track_ID            32
+#               16          reserved            32
+#               20          duration            32
+#               24          reserved            64
+#               32          layer               16
+#               34          alternate_group     16
+#               36          volume              16
+#               38          reserved            16
+#               40          matrix              32*9
+#               76          width               32
+#               80          height              32
     'tkhd':['FullBox',
             ([4,8],   'u', 'creation_time'),
             ([4,8],   'u', 'modification_time'),
@@ -169,8 +251,29 @@ supported_boxes = {
             ([36,36], 'uuuuuuuuu', 'matrix'),
             ([4,4],   'u', 'width'),
             ([4,4],   'u', 'height')],
+# ISO/IEC 14496-12, Section 8.7, Media Box
+# Box Type:     'mdia'
+# Container:    Track Box ('trak')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
     'mdia':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.8, Media Header Box
+# Box Type:     'mdhd'
+# Container:    Media Box ('mdia')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+######################### For version == 0 ###########################
+#               4           creation_time       32
+#               8           modification_time   32
+#               12          timescale           32
+#               16          duration            32
     'mdhd':['FullBox',
             ([4,8],   'u', 'creation_time'),
             ([4,8],   'u', 'modification_time'),
@@ -178,26 +281,105 @@ supported_boxes = {
             ([4,8],   'u', 'duration'),
             ([2,2],   'i', 'language'),
             ([2,2],   'N')],
+# ISO/IEC 14496-12, Section 8.9, Handler Reference Box
+# Box Type:     'hdlr'
+# Container:    Media Box ('mdia') or Meta Box ('meta')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           pre_defined         32
+#               8           handler_type        32
+#               12          reserved            32*3
+#               24          name                8*n
+# Last field contains a string which goes to the end of the file
     'hdlr':['FullBox',
             ([4,4],   'N'),
             ([4,4],   'c', 'handler_type', 4),
             ([12,12], 'N'),
             ([0,0],   'str', 'name')],
+# ISO/IEC 14496-12, Section 8.10, Media Information Box
+# Box Type:     'minf'
+# Container:    Media Box ('mdia')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
     'minf':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.11.2, Video Media Header Box
+# Box Type:     'vmhd'
+# Container:    Media Information Box ('minf')
+# Mandatory:    Yes
+# Quantity:     Exactly one specific media header shall be present
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           graphicsmode        16
+#               6           opcolor             16*3
     'vmhd':['FullBox',
             ([2,2], 'u', 'graphicsmode'),
             ([6,6], 'uuu', 'opcolor')],
+# ISO/IEC 14496-12, Section 8.11.3, Sound Media Header Box
+# Box Type:     'smhd'
+# Container:    Media Information Box ('minf')
+# Mandatory:    Yes
+# Quantity:     Exactly one specific media header shall be present
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           balance             16
+#               6           reserved            16
     'smhd':['FullBox',
             ([2,2], 'u', 'balance'),
             ([2,2], 'N')],
+# ISO/IEC 14496-12, Section 8.12, Data Information Box
+# Box Type:     'dinf'
+# Container:    Media Information Box ('mdia') OR
+#               Meta Box ('meta')
+# Mandatory:    Yes (within 'minf'), No (within 'meta')
+# Quantity:     Exactly one
+#
+# Contains other boxes
     'dinf':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.14, Sample Table Box
+# Box Type:     'stbl'
+# Container:    Media Information Box ('minf')
+# Mandatory:    Yes
+# Quantity:     Exactly one
+#
+# Contains other boxes
     'stbl':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.13, Data Reference Box
+# Box Type:     'dref'
+# Container:    Data Information Box ('dinf')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           entry_count         32
+#               8           DataEntryBox        n*entry_count
     'dref':['FullBox',
             ([4,4], 'u', 'entry_count'),
             ([0,0], 'aa', 'data_entry')],
+# ISO/IEC 14496-12, Section 8.13, Data Reference Box
+# Box Type:     'url'
+# Container:    Data Information Box ('dinf')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
+# Box Format:   [Offset,B]  [Field]             [Size, b]
+#               0           version             8
+#               1           flags               24
+#               4           location            n
     'url ':['FullBox',
             ([0,0], 'str', 'location')],
     'stts':['FullBox',
@@ -347,550 +529,6 @@ def processBox(file, box_len, read_offset, box_type):
             else:
                 print(item[2] + ": <NULL>")
     return box_info
-            
-# ISO/IEC 14496-12, Section 4.3, File Type Box
-# Box Type:     'ftyp'
-# Container:    File
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           major_brand         32
-#               4           minor_version       32
-#               8           compatible_brands   32 * n
-# Last field is an array of 4x UTF-8 values and will fill the
-# remainder of the box
-def processFTYP(file, box_len):
-    dbg_print(file.name)
-    if box_len % 4 != 0:
-        raise FormatError('ftyp')
-    try:
-        raw_major_brand = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    major_brand = raw_major_brand.decode('utf-8')
-    try:
-        raw_minor_version = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    minor_version = struct.unpack('>I', raw_minor_version)[0]
-    try:
-        raw_compatible_brands = readFromFile(file, box_len-8)
-    except FileReadError as err:
-        raise err
-    compatible_brands = raw_compatible_brands.decode('utf-8')
-
-    # Split up compatible brands 
-    compatible_brands = \
-        [compatible_brands[x:x+4] for x in range(0,box_len-8,4)]
-        
-    dbg_print("Major brand: " + major_brand)
-    dbg_print("Minor version: " + str(minor_version))
-    dbg_print("Compat. brands: ", end="")
-    for brand in compatible_brands:
-        dbg_print(brand + ", ", end="")
-    dbg_print()
-    return # TODO: return a container with all of these in them
-
-# ISO/IEC 14496-12, Section 8.1, Movie Box
-# Box Type:     'moov'
-# Container:    File
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Contains other boxes
-def processMOOV(file, box_len):
-    processChildren(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.2, Media Data Box
-# Box Type:     'mdat'
-# Container:    File
-# Mandatory:    No
-# Quantity:     Any number
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           data                8 * n
-# Last field is an array of the media bytes
-def processMDAT(file, box_len):
-    advanceNBytes(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.3, Movie Header Box
-# Box Type:     'mvhd'
-# Container:    Movie Box ('moov')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-######################### For version == 0 ###########################
-#               4           creation_time       32
-#               8           modification_time   32
-#               12          timescale           32
-#               16          duration            32
-#               20          rate                32
-#               24          volume              16
-#               26          reserved            16
-#               28          reserved            32*2
-#               36          matrix              32*9
-#               72          pre_defined         32*6
-#               96          next_track_ID       32
-#
-# Last field is an array of 4x UTF-8 values and will fill the
-# remainder of the box
-def processMVHD(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-    if version_info == 0:
-        try:
-            raw_creation_time = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        creation_time = struct.unpack('>l', raw_creation_time)[0]
-        dbg_print("Creation time: " + 
-            datetime.datetime.fromtimestamp(
-                creation_time
-            ).strftime('%Y-%m-%d %H:%M:%S')
-        )
-        try:
-            raw_modification_time = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        modification_time = struct.unpack('>l', raw_modification_time)[0]
-        dbg_print("Modification time: " + 
-            datetime.datetime.fromtimestamp(
-                modification_time
-            ).strftime('%Y-%m-%d %H:%M:%S')
-        )
-        try:
-            raw_timescale = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        timescale = struct.unpack('>l', raw_timescale)[0]
-        dbg_print("Timescale: " + str(timescale))
-        try:
-            raw_duration = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        duration = struct.unpack('>L', raw_duration)[0]
-        dbg_print("Duration: " + str(duration))
-    else:
-        # TODO: implement 64-bit timestamps
-        raise FormatError
-    try:
-        raw_rate = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    rate = struct.unpack('>i', raw_rate)[0]
-    dbg_print("Rate: " + str(rate))
-
-    try:
-        raw_volume = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    volume = struct.unpack('>h', raw_volume)[0]
-    dbg_print("Volume: " + str(volume))
-    # Skip the next 10 bytes, they should all be 0
-    advanceNBytes(file, 10)
-    # Read matrix
-    try:
-        raw_matrix = readFromFile(file, 36)
-    except FileReadError as err:
-        raise err
-    matrix = struct.unpack('>IIIIIIIII', raw_matrix)
-    # Skip the next 24 bytes, they should all be 0
-    advanceNBytes(file, 24)
-    try:
-        raw_next_track_ID = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    next_track_ID = struct.unpack('>I', raw_next_track_ID)[0]
-    dbg_print("Next track ID: " + str(next_track_ID))
-
-# ISO/IEC 14496-12, Section 8.4, Track Box
-# Box Type:     'trak'
-# Container:    Movie Box ('moov')
-# Mandatory:    Yes
-# Quantity:     One or more
-#
-# Contains other boxes
-def processTRAK(file, box_len):
-    processChildren(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.5, Track Header Box
-# Box Type:     'tkhd'
-# Container:    Track Box ('trak')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-######################### For version == 0 ###########################
-#               4           creation_time       32
-#               8           modification_time   32
-#               12          track_ID            32
-#               16          reserved            32
-#               20          duration            32
-#               24          reserved            64
-#               32          layer               16
-#               34          alternate_group     16
-#               36          volume              16
-#               38          reserved            16
-#               40          matrix              32*9
-#               76          width               32
-#               80          height              32
-def processTKHD(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-    if version_info == 0:
-        try:
-            raw_creation_time = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        creation_time = struct.unpack('>l', raw_creation_time)[0]
-        dbg_print("Creation time: " + 
-            datetime.datetime.fromtimestamp(
-                creation_time
-            ).strftime('%Y-%m-%d %H:%M:%S')
-        )
-        try:
-            raw_modification_time = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        modification_time = struct.unpack('>l', raw_modification_time)[0]
-        dbg_print("Modification time: " + 
-            datetime.datetime.fromtimestamp(
-                modification_time
-            ).strftime('%Y-%m-%d %H:%M:%S')
-        )
-        try:
-            raw_track_ID = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        track_ID = struct.unpack('>l', raw_track_ID)[0]
-        dbg_print("Track ID: " + str(track_ID))
-        advanceNBytes(file, 4)
-        try:
-            raw_duration = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        duration = struct.unpack('>L', raw_duration)[0]
-    else:
-        # TODO: implement 64-bit timestamps
-        raise FormatError
-    advanceNBytes(file, 8)
-
-    try:
-        raw_layer = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    layer = struct.unpack('>h', raw_layer)[0]
-    dbg_print("Layer: " + str(layer))
-
-    try:
-        raw_alternate_group = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    alternate_group = struct.unpack('>h', raw_alternate_group)[0]
-    dbg_print("Alternate group: " + str(alternate_group))
-
-    try:
-        raw_volume = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    volume = struct.unpack('>h', raw_volume)
-    advanceNBytes(file, 2)
-    # Read matrix
-    try:
-        raw_matrix = readFromFile(file, 36)
-    except FileReadError as err:
-        raise err
-    matrix = struct.unpack('>IIIIIIIII', raw_matrix)
-
-    try:
-        raw_width = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    width = struct.unpack('>l', raw_width)[0]
-    dbg_print('Width: ' + str(width))
-
-    try:
-        raw_height = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    height = struct.unpack('>l', raw_height)[0]
-    dbg_print('Height: ' + str(height))
-
-# ISO/IEC 14496-12, Section 8.7, Media Box
-# Box Type:     'mdia'
-# Container:    Track Box ('trak')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Contains other boxes
-def processMDIA(file, box_len):
-    processChildren(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.8, Media Header Box
-# Box Type:     'mdhd'
-# Container:    Media Box ('mdia')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-######################### For version == 0 ###########################
-#               4           creation_time       32
-#               8           modification_time   32
-#               12          timescale           32
-#               16          duration            32
-def processMDHD(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-    if version_info == 0:
-        try:
-            raw_creation_time = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        creation_time = struct.unpack('>l', raw_creation_time)[0]
-        dbg_print("Creation time: " + 
-            datetime.datetime.fromtimestamp(
-                creation_time
-            ).strftime('%Y-%m-%d %H:%M:%S')
-        )
-        try:
-            raw_modification_time = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        modification_time = struct.unpack('>l', raw_modification_time)[0]
-        dbg_print("Modification time: " + 
-            datetime.datetime.fromtimestamp(
-                modification_time
-            ).strftime('%Y-%m-%d %H:%M:%S')
-        )
-        try:
-            raw_timescale = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        timescale = struct.unpack('>l', raw_timescale)[0]
-        dbg_print("Timescale: " + str(timescale))
-        try:
-            raw_duration = readFromFile(file, 4)
-        except FileReadError as err:
-            raise err
-        duration = struct.unpack('>L', raw_duration)[0]
-        dbg_print("Duration: " + str(duration))
-    else:
-        # TODO: implement 64-bit timestamps
-        raise FormatError
-    # Read the ISO-639-2/T language code and the padding bit
-    try:
-        raw_language = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    language = struct.unpack('>H', raw_language)[0]
-    dbg_print("Language code: " + str(language))
-
-    # Skip bytes defined to 0
-    advanceNBytes(file, 2)
-
-# ISO/IEC 14496-12, Section 8.9, Handler Reference Box
-# Box Type:     'hdlr'
-# Container:    Media Box ('mdia') or Meta Box ('meta')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           pre_defined         32
-#               8           handler_type        32
-#               12          reserved            32*3
-#               24          name                8*n
-# Last field contains a string which goes to the end of the file
-def processHDLR(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-    # Only version info == 0 is defined
-    if version_info is not 0:
-        raise FormatError
-    print('HDLR box_len: ' + str(box_len))
-
-    # Skip defined 0s
-    advanceNBytes(file, 4)
-
-    try:
-        raw_handler_type = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    handler_type = raw_handler_type.decode('utf-8')
-    dbg_print("Handler type: " + handler_type)
-
-    # Skip defined 0s
-    advanceNBytes(file, 12)
-
-    # Read the remainder of the file as a UTF-8
-    try:
-        raw_name = readFromFile(file, box_len - 24)
-    except FileReadError as err:
-        raise err
-
-    name = raw_name.decode('utf-8')
-    dbg_print("Name: ", end="")
-    if name is '\0':
-        dbg_print("(None)")
-    else:
-        dbg_print(name)
-
-# ISO/IEC 14496-12, Section 8.10, Media Information Box
-# Box Type:     'minf'
-# Container:    Media Box ('mdia')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Contains other boxes
-def processMINF(file, box_len):
-    processChildren(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.11.2, Video Media Header Box
-# Box Type:     'vmhd'
-# Container:    Media Information Box ('minf')
-# Mandatory:    Yes
-# Quantity:     Exactly one specific media header shall be present
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           graphicsmode        16
-#               6           opcolor             16*3
-def processVMHD(file, box_len):
-    readFullBoxHeader(file)
-    try:
-        raw_graphicsmode = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    graphicsmode = struct.unpack('>H', raw_graphicsmode)[0]
-    dbg_print(graphicsmode)
-
-    try:
-        raw_opcolor = readFromFile(file, 6)
-    except FileReadError as err:
-        raise err
-    opcolor = struct.unpack('>HHH', raw_opcolor)
-    dbg_print(opcolor)
-
-# ISO/IEC 14496-12, Section 8.11.3, Sound Media Header Box
-# Box Type:     'smhd'
-# Container:    Media Information Box ('minf')
-# Mandatory:    Yes
-# Quantity:     Exactly one specific media header shall be present
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           balance             16
-#               6           reserved            16
-def processSMHD(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-
-    try:
-        raw_balance = readFromFile(file, 2)
-    except FileReadError as err:
-        raise err
-    balance = struct.unpack('>H', raw_balance)[0]
-    dbg_print(balance)
-
-    advanceNBytes(file, 2)
-
-# ISO/IEC 14496-12, Section 8.12, Data Information Box
-# Box Type:     'dinf'
-# Container:    Media Information Box ('mdia') OR
-#               Meta Box ('meta')
-# Mandatory:    Yes (within 'minf'), No (within 'meta')
-# Quantity:     Exactly one
-#
-# Contains other boxes
-def processDINF(file, box_len):
-    processChildren(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.14, Sample Table Box
-# Box Type:     'stbl'
-# Container:    Media Information Box ('minf')
-# Mandatory:    Yes
-# Quantity:     Exactly one
-#
-# Contains other boxes
-def processSTBL(file, box_len):
-    processChildren(file, box_len)
-
-# ISO/IEC 14496-12, Section 8.13, Data Reference Box
-# Box Type:     'dref'
-# Container:    Data Information Box ('dinf')
-# Mandatory:    Yes
-# Quantity:     Exactly one 
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           entry_count         32
-#               8           DataEntryBox        n*entry_count
-def processDREF(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-
-    try:
-        raw_entry_count = readFromFile(file, 4)
-    except FileReadError as err:
-        raise err
-    entry_count = struct.unpack('>L', raw_entry_count)[0]
-
-    for i in range(0, entry_count):
-        processChildren(file, box_len-8)
-
-# ISO/IEC 14496-12, Section 8.13, Data Reference Box
-# Box Type:     'url'
-# Container:    Data Information Box ('dinf')
-# Mandatory:    Yes
-# Quantity:     Exactly one 
-#
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           location            n
-def processURL(file, box_len):
-    try:
-        (version_info, flags) = readFullBoxHeader(file)
-    except FileReadError as err:
-        raise err
-
-    # Read the remainder of the box as a UTF-8
-    try:
-        raw_url = readFromFile(file, box_len - 4)
-    except FileReadError as err:
-        raise err
-
-    url = raw_url.decode('utf-8')
-    dbg_print("URL: ", end="")
-    if url is '\0':
-        dbg_print("(None)")
-    else:
-        dbg_print(url)
-
 
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
