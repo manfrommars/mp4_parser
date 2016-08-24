@@ -139,12 +139,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           major_brand         32
-#               4           minor_version       32
-#               8           compatible_brands   32 * n
-# Last field is an array of 4x UTF-8 values and will fill the
-# remainder of the box
     'ftyp':['Box',
             (4, 'u', 'major_brand'),
             (4, 'u', 'minor_version'),
@@ -155,7 +149,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Contains other boxes
     'moov':['Box',
             (0, 'a', 'children')],
 # ISO/IEC 14496-12, Section 8.2, Media Data Box
@@ -164,9 +157,6 @@ supported_boxes = {
 # Mandatory:    No
 # Quantity:     Any number
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           data                8 * n
-# Last field is an array of the media bytes
     'mdat':['Box',
             (0, 'b', 'data_len')],
 # ISO/IEC 14496-12, Section 8.3, Movie Header Box
@@ -175,24 +165,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-######################### For version == 0 ###########################
-#               4           creation_time       32
-#               8           modification_time   32
-#               12          timescale           32
-#               16          duration            32
-#               20          rate                32
-#               24          volume              16
-#               26          reserved            16
-#               28          reserved            32*2
-#               36          matrix              32*9
-#               72          pre_defined         32*6
-#               96          next_track_ID       32
-#
-# Last field is an array of 4x UTF-8 values and will fill the
-# remainder of the box
     'mvhd':['FullBox',
             ([4,8],   'u', 'creation_time'),
             ([4,8],   'u', 'modification_time'),
@@ -211,7 +183,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     One or more
 #
-# Contains other boxes
     'trak':['Box',
             (0, 'a', 'children')],
 # ISO/IEC 14496-12, Section 8.5, Track Header Box
@@ -220,23 +191,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-######################### For version == 0 ###########################
-#               4           creation_time       32
-#               8           modification_time   32
-#               12          track_ID            32
-#               16          reserved            32
-#               20          duration            32
-#               24          reserved            64
-#               32          layer               16
-#               34          alternate_group     16
-#               36          volume              16
-#               38          reserved            16
-#               40          matrix              32*9
-#               76          width               32
-#               80          height              32
     'tkhd':['FullBox',
             ([4,8],   'u', 'creation_time'),
             ([4,8],   'u', 'modification_time'),
@@ -257,7 +211,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Contains other boxes
     'mdia':['Box',
             (0, 'a', 'children')],
 # ISO/IEC 14496-12, Section 8.8, Media Header Box
@@ -266,14 +219,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-######################### For version == 0 ###########################
-#               4           creation_time       32
-#               8           modification_time   32
-#               12          timescale           32
-#               16          duration            32
     'mdhd':['FullBox',
             ([4,8],   'u', 'creation_time'),
             ([4,8],   'u', 'modification_time'),
@@ -287,14 +232,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           pre_defined         32
-#               8           handler_type        32
-#               12          reserved            32*3
-#               24          name                8*n
-# Last field contains a string which goes to the end of the file
     'hdlr':['FullBox',
             ([4,4],   'N'),
             ([4,4],   'c', 'handler_type', 4),
@@ -306,7 +243,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Contains other boxes
     'minf':['Box',
             (0, 'a', 'children')],
 # ISO/IEC 14496-12, Section 8.11.2, Video Media Header Box
@@ -315,11 +251,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one specific media header shall be present
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           graphicsmode        16
-#               6           opcolor             16*3
     'vmhd':['FullBox',
             ([2,2], 'u', 'graphicsmode'),
             ([6,6], 'uuu', 'opcolor')],
@@ -329,11 +260,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one specific media header shall be present
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           balance             16
-#               6           reserved            16
     'smhd':['FullBox',
             ([2,2], 'u', 'balance'),
             ([2,2], 'N')],
@@ -344,7 +270,6 @@ supported_boxes = {
 # Mandatory:    Yes (within 'minf'), No (within 'meta')
 # Quantity:     Exactly one
 #
-# Contains other boxes
     'dinf':['Box',
             (0, 'a', 'children')],
 # ISO/IEC 14496-12, Section 8.14, Sample Table Box
@@ -353,7 +278,6 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one
 #
-# Contains other boxes
     'stbl':['Box',
             (0, 'a', 'children')],
 # ISO/IEC 14496-12, Section 8.13, Data Reference Box
@@ -362,39 +286,90 @@ supported_boxes = {
 # Mandatory:    Yes
 # Quantity:     Exactly one 
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           entry_count         32
-#               8           DataEntryBox        n*entry_count
     'dref':['FullBox',
             ([4,4], 'u', 'entry_count'),
             ([0,0], 'aa', 'data_entry')],
 # ISO/IEC 14496-12, Section 8.13, Data Reference Box
-# Box Type:     'url'
+# Box Type:     'url '
 # Container:    Data Information Box ('dinf')
 # Mandatory:    Yes
 # Quantity:     Exactly one 
 #
-# Box Format:   [Offset,B]  [Field]             [Size, b]
-#               0           version             8
-#               1           flags               24
-#               4           location            n
     'url ':['FullBox',
             ([0,0], 'str', 'location')],
+# ISO/IEC 14496-12, Section 8.15.2, Decoding Time to Sample Box
+# Box Type:     'stts'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
     'stts':['FullBox',
             ([4,4], 'u', 'entry_count'),
             ([0,0], 'aaa', ['sample_count', 'sample_delta'])],
+# ISO/IEC 14496-12, Section 8.15.3, Composition Time to Sample Box
+# Box Type:     'ctts'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    No
+# Quantity:     Zero or one 
+#
     'ctts':['FullBox',
             ([4,4], 'u', 'entry_count'),
             ([0,0], 'aaa', ['sample_count', 'sample_offset'])],
+# ISO/IEC 14496-12, Section 8.20, Sync Sample Box
+# Box Type:     'stss'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    No
+# Quantity:     Zero or one 
+#
     'stss':['FullBox',
             ([4,4], 'u', 'entry_count'),
             ([0,0], 'aaa', ['sample_number'])],
+# ISO/IEC 14496-12, Section 8.17, Sample Size Box
+# Box Type:     'stsz'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    Yes
+# Quantity:     Exactly one variant
+#
     'stsz':['FullBox',
             ([4,4], 'u', 'sample_size'),
             ([4,4], 'u', 'sample_count'),
             ([0,0], 'A', 'entry_size')],
+# ISO/IEC 14496-12, Section 8.18, Sample To Chunk Box
+# Box Type:     'stts'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
+    'stsc':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'aaa', ['first_chunk', 'samples_per_chunk',
+                            'sample_description_index'])],
+# ISO/IEC 14496-12, Section 8.19, Chunk Offset Box
+# Box Type:     'stco'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    Yes
+# Quantity:     Exactly one variant
+#
+    'stco':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'aaa', ['chunk_offset'])],
+# ISO/IEC 14496-12, Section 8.40.2, Independent and Disposable Samples Box
+# Box Type:     'sdtp'
+# Container:    Sample Table Box ('stbl') or Track Fragment Box ('traf')
+# Mandatory:    No
+# Quantity:     Zero or one 
+#
+    'sdtp':['FullBox',
+            ([0,0], 'b', 'samples')],
+# ISO/IEC 14496-12, Section 8.16, Sample Description Box
+# Box Type:     'stsd'
+# Container:    Sample Table Box ('stbl')
+# Mandatory:    Yes
+# Quantity:     Exactly one 
+#
+    'stsd':['FullBox',
+            ([4,4], 'u', 'entry_count'),
+            ([0,0], 'b', 'sample_entry')],
     }
 
 
@@ -472,7 +447,7 @@ def processBox(file, box_len, read_offset, box_type):
                             box_info[item[2]].append(struct.unpack('>L', temp)[0])
                         else:
                             box_info[item[2]]=[struct.unpack('>L', temp)[0]]
-            else:
+            elif item[1] != 'b':
                 try:
                     temp = readFromFile(file, box_len-read_offset)
                 except FileReadError as err:
