@@ -370,6 +370,31 @@ supported_boxes = {
     'stsd':['FullBox',
             ([4,4], 'u', 'entry_count'),
             ([0,0], 'b', 'sample_entry')],
+# ISO/IEC 14496-12, Section 8.24, Free Space Box
+# Box Type:     'free'
+# Container:    File or other box
+# Mandatory:    No
+# Quantity:     Any number
+#
+    'free':['Box',
+            (0, 'b', 'data')],
+# ISO/IEC 14496-12, Section 8.25, Edit Box
+# Box Type:     'edts'
+# Container:    Track Box ('trak')
+# Mandatory:    No
+# Quantity:     Zero or one
+#
+    'edts':['Box',
+            (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.27, User Data Box
+# Box Type:     'udta'
+# Container:    Movie Box ('moov') OR
+#               Track Box ('trak')
+# Mandatory:    No
+# Quantity:     Zero or one
+#
+    'udta':['Box',
+            (0, 'a', 'children')],
     }
 
 
