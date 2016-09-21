@@ -116,7 +116,7 @@ def advanceNBytes(file, num_bytes):
 def processChildren(file, num_bytes):
     child_size = 0
     while child_size < num_bytes:
-        child_size = child_size + readMp4Box(file)
+        child_size = child_size + readMp4Box(file)[0]
 
 # Print function for debugging
 def dbg_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
@@ -422,10 +422,8 @@ supported_boxes = {
 
 
 # For each defined box, read its format from the dictionary
-def processBox(file, box_len, read_offset, box_type):
-    box_info = {'size': box_len,
-                'type': box_type }
-    info_list = supported_boxes[box_type]
+def processBox(file, read_offset, box_info):
+    info_list = supported_boxes[box_info['type']]
     # First item is always "Box" or "FullBox"
     if info_list[0] not in box_types:
         raise FileReadError
@@ -466,10 +464,10 @@ def processBox(file, box_len, read_offset, box_type):
             read_offset = read_offset + size
         else:
             if item[1] == 'a':
-                readMp4Box(file)
+                box_info[item[2]] = readMp4Box(file)[1]
             elif item[1] == 'aa':
                 for i in range(0, box_info['entry_count']):
-                    processChildren(file, box_len-read_offset)
+                    processChildren(file, box_info['size']-read_offset)
             elif item[1] == 'aaa':
                 for i in range(0, box_info['entry_count']):
                     for j in range(0, len(item[2])):
@@ -497,7 +495,7 @@ def processBox(file, box_len, read_offset, box_type):
                             box_info[item[2]]=[struct.unpack('>L', temp)[0]]
             elif item[1] != 'b':
                 try:
-                    temp = readFromFile(file, box_len-read_offset)
+                    temp = readFromFile(file, box_info['size']-read_offset)
                 except FileReadError as err:
                     raise err
         # After reading in the data, process the type
@@ -532,8 +530,8 @@ def processBox(file, box_len, read_offset, box_type):
             print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'b':
             # Binary data
-            box_info[item[2]] = box_len - read_offset
-            advanceNBytes(file, box_len - read_offset)
+            box_info[item[2]] = box_info['size'] - read_offset
+            advanceNBytes(file, box_info['size'] - read_offset)
         elif item[1] == 'i':
             # ISO-639-2/T language code
             # 5 bits each, an offset from 0x60
@@ -551,7 +549,6 @@ def processBox(file, box_len, read_offset, box_type):
                 print(item[2] + ": " + str(box_info[item[2]]))
             else:
                 print(item[2] + ": <NULL>")
-    return box_info
 
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
@@ -571,26 +568,29 @@ def readMp4Box(file):
         if err.bytes_read != 0:
             print("Failed to read the file, bytes read: " + str(err.bytes_read))
             print("instead of: " + str(err.bytes_requested))
-        return err.bytes_read
+        return (err.bytes_read, {})
+
+    box_info = {'size': box_size,
+                'type': box_type }
 
     try:
         # Process each type
         if box_type in supported_boxes:
-            processBox(file, box_size, read_offset, box_type)
+            processBox(file, read_offset, box_info)
         else:
             # TODO: add handling for more box types
             print("Not handling: " + box_type)
             advanceNBytes(file, box_size - read_offset)
     except FormatError as e:
         print("Formatting error in box type: ", e.box_type)
-    return box_size
+    return (box_size, box_info)
 
 # Function reads an MP4 file and parses all of the box types it
 # recognizes
 def readMp4File(filename):
     with open(filename, "rb") as f:
         # readMp4Box returns the number of bytes read, EOF when it
-        # reads 0
-        while readMp4Box(f) > 0:
-            pass
+        # reads 0 (and box info)
+        while readMp4Box(f)[0] > 0:
+            pass            
         
