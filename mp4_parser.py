@@ -395,6 +395,29 @@ supported_boxes = {
 #
     'udta':['Box',
             (0, 'a', 'children')],
+# ISO/IEC 14496-12, Section 8.44.1, Meta Box
+# Box Type:     'meta'
+# Container:    File, Movie Box (moov), or Track Box ('trak')
+# Mandatory:    No
+# Quantity:     Zero or one
+#
+    'meta':['Box',
+            (0, 'b', 'data')],
+# ISO/IEC 14496-12, Section 8.26, Edit List Box
+# Box Type:     'elst'
+# Container:    Edit Box (edts)
+# Mandatory:    No
+# Quantity:     Zero or one
+#
+    'elst':['Box',
+            (0, 'b', 'data')], # not translated
+# Other Box Types
+    'wide':['Box',
+            (0, 'b', 'data')], # not translated
+    'iods':['Box',
+            (0, 'b', 'data')], # not translated
+    'SDLN':['Box',
+            (0, 'b', 'data')], # not translated
     }
 
 
