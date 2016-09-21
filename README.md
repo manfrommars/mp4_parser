@@ -28,6 +28,7 @@ Only translates:
 * free
 * edts
 * udta
+
 The following types are recognized but not translated in any way:
 * meta
 * elst
