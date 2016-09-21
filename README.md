@@ -1,5 +1,5 @@
 # mp4_parser
-Pull information from MP4 metadata.  Data isn't returned yet, nor is it in a usable configuration.'
+Pull information from MP4 metadata.  Data isn't returned yet, nor is it in a usable configuration.
 Only translates:
 * ftyp
 * moov
