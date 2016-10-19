@@ -13,6 +13,9 @@ with open(stdout_redirect, 'w') as f:
     mp4_parser.DEBUG=0
     print("Run parser:")
 
+##    root = "~/Movies/dance_tutorials/spain_videos_miguel/"
+##    for i in range(0,1):
+##        for filename in ["9-3-2015.mp4"]:
     for root, directories, filenames in os.walk(dirpath):
         for filename in filenames:
             path = os.path.join(root,filename)
@@ -21,4 +24,6 @@ with open(stdout_redirect, 'w') as f:
                 print(path.encode('utf-8'))
                 print('='*60)
                 mp4_parser.readMp4File(os.path.join(root,filename))
-
+                print('='*60)
+                val = mp4_parser.findMp4Box(os.path.join(root,filename), 'mvhd')
+                print("DEBUG: " + str(val))

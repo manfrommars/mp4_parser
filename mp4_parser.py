@@ -578,7 +578,6 @@ def readMp4Box(file):
         if box_type in supported_boxes:
             processBox(file, read_offset, box_info)
         else:
-            # TODO: add handling for more box types
             print("Not handling: " + box_type)
             advanceNBytes(file, box_size - read_offset)
     except FormatError as e:
@@ -589,8 +588,21 @@ def readMp4Box(file):
 # recognizes
 def readMp4File(filename):
     with open(filename, "rb") as f:
-        # readMp4Box returns the number of bytes read, EOF when it
-        # reads 0 (and box info)
+        # readMp4Box returns the number of bytes read and box info,
+        # EOF when it reads 0 (and box info)
         while readMp4Box(f)[0] > 0:
             pass            
         
+# Function reads an MP4 file and returns a specific field from the box
+# type specified
+def findMp4Box(filename, box_type):
+    if box_type in supported_boxes:
+        with open(filename, "rb") as f:
+            # readMp4Box returns the number of bytes read, EOF when it
+            # reads 0 (and box info)
+            metadata = [1,0]
+            while metadata[0] > 0:
+                metadata = readMp4Box(f)
+                if box_type in metadata[1]:
+                    return metadata[1][box_type] # box_info
+            
