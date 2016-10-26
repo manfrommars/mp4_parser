@@ -115,8 +115,12 @@ def advanceNBytes(file, num_bytes):
 # Read and process all children in num_bytes
 def processChildren(file, num_bytes):
     child_size = 0
+    local_dict = {}
     while child_size < num_bytes:
-        child_size = child_size + readMp4Box(file)[0]
+        box_size, box_info = readMp4Box(file)
+        child_size = child_size + box_size
+        local_dict.update(box_info)
+    return local_dict
 
 # Print function for debugging
 def dbg_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
@@ -464,7 +468,10 @@ def processBox(file, read_offset, box_info):
             read_offset = read_offset + size
         else:
             if item[1] == 'a':
-                box_info[item[2]] = readMp4Box(file)[1]
+                # flatten the inputs by appending the tree in "parent:child" to dictionary keys
+                info = processChildren(file, box_info['size']-read_offset)
+                for key, value in info.items():
+                    box_info[box_info['type']+":"+key] = value
             elif item[1] == 'aa':
                 for i in range(0, box_info['entry_count']):
                     processChildren(file, box_info['size']-read_offset)
@@ -596,13 +603,20 @@ def readMp4File(filename):
 # Function reads an MP4 file and returns a specific field from the box
 # type specified
 def findMp4Box(filename, box_type):
+    print("Search for: " + box_type)
     if box_type in supported_boxes:
+        print("Supported type: " + box_type)
         with open(filename, "rb") as f:
             # readMp4Box returns the number of bytes read, EOF when it
             # reads 0 (and box info)
             metadata = [1,0]
             while metadata[0] > 0:
                 metadata = readMp4Box(f)
-                if box_type in metadata[1]:
-                    return metadata[1][box_type] # box_info
+                #print("Parsing: " + str(metadata))
+                for key, value in metadata[1].items():
+                    print("Parsing: " + str(key))
+                    if box_type in key:
+                        print("Found boxtype" + str(box_type))
+                        return metadata[1][box_type] # box_info                        
+                    
             
