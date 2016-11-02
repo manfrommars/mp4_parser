@@ -22,8 +22,9 @@ with open(stdout_redirect, 'w') as f:
             print(path.encode('utf-8'))
             if path.endswith('.mp4'):
                 print(path.encode('utf-8'))
+                #print('='*60)
+                #mp4_parser.readMp4File(os.path.join(root,filename))
                 print('='*60)
-                mp4_parser.readMp4File(os.path.join(root,filename))
-                print('='*60)
-                val = mp4_parser.findMp4Box(os.path.join(root,filename), 'mvhd')
-                print("DEBUG: " + str(val))
+                field = 'creation_time'
+                val = mp4_parser.findMp4Field(os.path.join(root,filename), field)
+                print("DEBUG: " + field + "="+ str(val))

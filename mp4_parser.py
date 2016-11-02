@@ -128,6 +128,15 @@ def dbg_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
     if DEBUG is 1:
         print(*objects, sep=sep, end=end, file=file, flush=flush)
 
+# Determine if the field is in the supported box types
+def checkField(field):
+    for key, value in supported_boxes.items():
+        for tup in value[1:]:
+            if len(tup) > 2:
+                if tup[2] is field:
+                    return True
+    return False
+
 ######################################################################
 ## Box Types
 ######################################################################
@@ -468,10 +477,10 @@ def processBox(file, read_offset, box_info):
             read_offset = read_offset + size
         else:
             if item[1] == 'a':
-                # flatten the inputs by appending the tree in "parent:child" to dictionary keys
+                # flatten the inputs by appending the child dictionary
+                print("Process children")
                 info = processChildren(file, box_info['size']-read_offset)
-                for key, value in info.items():
-                    box_info[box_info['type']+":"+key] = value
+                box_info.update(info)
             elif item[1] == 'aa':
                 for i in range(0, box_info['entry_count']):
                     processChildren(file, box_info['size']-read_offset)
@@ -599,13 +608,32 @@ def readMp4File(filename):
         # EOF when it reads 0 (and box info)
         while readMp4Box(f)[0] > 0:
             pass            
-        
-# Function reads an MP4 file and returns a specific field from the box
-# type specified
-def findMp4Box(filename, box_type):
-    print("Search for: " + box_type)
-    if box_type in supported_boxes:
-        print("Supported type: " + box_type)
+
+#### DEFUNCT:
+### Function reads an MP4 file and returns a specific field from the box
+### type specified
+##def findMp4Box(filename, box_type):
+##    print("Search for: " + box_type)
+##    if box_type in supported_boxes:
+##        print("Supported type: " + box_type)
+##        with open(filename, "rb") as f:
+##            # readMp4Box returns the number of bytes read, EOF when it
+##            # reads 0 (and box info)
+##            metadata = [1,0]
+##            while metadata[0] > 0:
+##                metadata = readMp4Box(f)
+##                #print("Parsing: " + str(metadata))
+##                for key, value in metadata[1].items():
+##                    print("Parsing: " + str(key))
+##                    if box_type in key:
+##                        print("Found boxtype" + str(box_type))
+##                        return metadata[1][box_type] # box_info
+
+# Function reads an MP4 file and returns a specific field from the box type specified
+def findMp4Field(filename, box_field):
+    print("Search for: " + box_field)
+    if checkField(box_field):
+        #print("Field exists")
         with open(filename, "rb") as f:
             # readMp4Box returns the number of bytes read, EOF when it
             # reads 0 (and box info)
@@ -614,9 +642,7 @@ def findMp4Box(filename, box_type):
                 metadata = readMp4Box(f)
                 #print("Parsing: " + str(metadata))
                 for key, value in metadata[1].items():
-                    print("Parsing: " + str(key))
-                    if box_type in key:
-                        print("Found boxtype" + str(box_type))
-                        return metadata[1][box_type] # box_info                        
-                    
-            
+                    #print("Parsing: " + str(key))
+                    if box_field in key:
+                        #print("Found field " + str(box_field))
+                        return metadata[1][box_field] # value of field
