@@ -1,5 +1,4 @@
 import struct
-import datetime
 import sys
 
 DEBUG=0
@@ -441,8 +440,8 @@ def processBox(file, read_offset, box_info):
     if info_list[0] not in box_types:
         raise FileReadError
 
-    print('type: ' +     box_info['type']       )
-    print('size: ' + str(box_info['size']) + 'B')
+    dbg_print('type: ' +     box_info['type']       )
+    dbg_print('size: ' + str(box_info['size']) + 'B')
 
     if info_list[0] is 'FullBox':
         try:
@@ -450,8 +449,8 @@ def processBox(file, read_offset, box_info):
              box_info['flags']) = readFullBoxHeader(file)
         except FileReadError as err:
             raise err
-        print('version: ' + str(box_info['version']))
-        print('flags: ' + str(box_info['flags']))
+        dbg_print('version: ' + str(box_info['version']))
+        dbg_print('flags: ' + str(box_info['flags']))
         read_offset = read_offset + 4
 
     for item in info_list[1:]:
@@ -478,7 +477,7 @@ def processBox(file, read_offset, box_info):
         else:
             if item[1] == 'a':
                 # flatten the inputs by appending the child dictionary
-                print("Process children")
+                dbg_print("Process children")
                 info = processChildren(file, box_info['size']-read_offset)
                 box_info.update(info)
             elif item[1] == 'aa':
@@ -523,7 +522,7 @@ def processBox(file, read_offset, box_info):
             else:
                 print("Unhandled string case: " + str(len(item)))
             box_info[item[2]]=temp
-            print(item[2] + ": " + str(box_info[item[2]]))
+            dbg_print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'u':
             # Unsigned value
             if size == 2:
@@ -533,17 +532,17 @@ def processBox(file, read_offset, box_info):
             else:
                 print("Unhandled size: " + str(size))
             box_info[item[2]]=temp
-            print(item[2] + ": " + str(box_info[item[2]]))
+            dbg_print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'uuu':
             # Unsigned values
             if size == 6:
                 box_info[item[2]] = struct.unpack('>HHH', temp)
             else:
                 print("ERROR: unhandled size")
-            print(item[2] + ": " + str(box_info[item[2]]))
+            dbg_print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'uuuuuuuuu':
             box_info[item[2]] = struct.unpack('>LLLLLLLLL', temp)
-            print(item[2] + ": " + str(box_info[item[2]]))
+            dbg_print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'b':
             # Binary data
             box_info[item[2]] = box_info['size'] - read_offset
@@ -558,13 +557,13 @@ def processBox(file, read_offset, box_info):
             offset2 = bytes([(temp[0] >> 1) & b'\x1f'[0]])
             offset2 = bytes([offset2[0] + b'\x60'[0]]).decode('unicode_escape')
             box_info[item[2]] = offset2+offset1+offset0
-            print(item[2] + ": " + str(box_info[item[2]]))
+            dbg_print(item[2] + ": " + str(box_info[item[2]]))
         elif item[1] == 'str':
             box_info[item[2]] = temp.decode('utf-8')
             if box_info[item[2]] != '\0':
-                print(item[2] + ": " + str(box_info[item[2]]))
+                dbg_print(item[2] + ": " + str(box_info[item[2]]))
             else:
-                print(item[2] + ": <NULL>")
+                dbg_print(item[2] + ": <NULL>")
 
 # Function reads ISO/IEC 14496-12 MP4 file boxes and returns the
 # object tree
@@ -609,40 +608,16 @@ def readMp4File(filename):
         while readMp4Box(f)[0] > 0:
             pass            
 
-#### DEFUNCT:
-### Function reads an MP4 file and returns a specific field from the box
-### type specified
-##def findMp4Box(filename, box_type):
-##    print("Search for: " + box_type)
-##    if box_type in supported_boxes:
-##        print("Supported type: " + box_type)
-##        with open(filename, "rb") as f:
-##            # readMp4Box returns the number of bytes read, EOF when it
-##            # reads 0 (and box info)
-##            metadata = [1,0]
-##            while metadata[0] > 0:
-##                metadata = readMp4Box(f)
-##                #print("Parsing: " + str(metadata))
-##                for key, value in metadata[1].items():
-##                    print("Parsing: " + str(key))
-##                    if box_type in key:
-##                        print("Found boxtype" + str(box_type))
-##                        return metadata[1][box_type] # box_info
-
 # Function reads an MP4 file and returns a specific field from the box type specified
 def findMp4Field(filename, box_field):
-    print("Search for: " + box_field)
+    dbg_print("Search for: " + box_field)
     if checkField(box_field):
-        #print("Field exists")
         with open(filename, "rb") as f:
             # readMp4Box returns the number of bytes read, EOF when it
             # reads 0 (and box info)
             metadata = [1,0]
             while metadata[0] > 0:
                 metadata = readMp4Box(f)
-                #print("Parsing: " + str(metadata))
                 for key, value in metadata[1].items():
-                    #print("Parsing: " + str(key))
                     if box_field in key:
-                        #print("Found field " + str(box_field))
                         return metadata[1][box_field] # value of field
