@@ -1,4 +1,5 @@
 import mp4_parser
+import filename_parser
 import os
 import sys
 import io
@@ -28,3 +29,5 @@ with open(stdout_redirect, 'w') as f:
                 field = 'creation_time'
                 val = mp4_parser.findMp4Field(os.path.join(root,filename), field)
                 print("DEBUG: " + field + "="+ str(val))
+                date = filename_parser.datetimeFromFilename(filename)
+                print(str(date))
